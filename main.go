@@ -14,11 +14,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	//_ "url-shortener/docs"
 	"url-shortener/internal/model"
 	"url-shortener/internal/repository"
 	"url-shortener/internal/utils"
+
+	//_ "url-shortener/docs"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -271,19 +271,28 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 2: Track visit (we’ll enhance this later)
+	// 🆕 Get IP (client or fallback)
 	ip := getClientIP(r)
 	if ip == "::1" || ip == "127.0.0.1" {
-		ip = "103.48.198.141" // ← Use a real IP for realistic country lookup
+		ip = "103.48.198.141" // local dev IP override
 	}
+
+	// 🆕 Parse user-agent
 	ua := r.UserAgent()
+	browser, os, device := utils.ParseUserAgent(ua)
+
+	// 🆕 Get location
+	location, _ := utils.GetLocation(ip) // ignore error fallback
 
 	visit := model.Visit{
 		URLID:     url.ID,
 		Timestamp: time.Now(),
 		IPAddress: ip,
-		Country:   utils.GetCountryFromIP(ip),
-		Browser:   ua,
-		Device:    utils.GetDeviceFromUserAgent(ua),
+		Country:   location.Country,
+		//City:      location.City,
+		Browser: browser,
+		OS:      os,
+		Device:  device,
 	}
 
 	err = repository.SaveVisit(db, visit)
@@ -366,36 +375,42 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseForm()
+	// Step 1: Decode JSON from request body
+	var req struct {
+		LongURL    string `json:"long_url"`
+		Visibility string `json:"visibility"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, "Failed to parse form data", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
 
-	original := r.FormValue("url")
-	visibility := r.FormValue("visibility")
-
-	// Step 1: Check if the short code exists
+	// Step 2: Fetch original short URL from DB
 	url, err := repository.GetURLByCode(db, code)
 	if err != nil {
 		http.Error(w, "Short code not found", http.StatusNotFound)
 		return
 	}
 
-	// Step 2: Update fields if provided
-	if original != "" {
-		url.Original = original
+	// Step 3: Apply updates if provided
+	if req.LongURL != "" {
+		url.Original = req.LongURL
 	}
-	if visibility != "" {
-		url.Visibility = visibility
+	if req.Visibility != "" {
+		url.Visibility = req.Visibility
 	}
 
+	// Step 4: Save updates
 	err = repository.UpdateURL(db, url)
 	if err != nil {
 		http.Error(w, "Failed to update URL", http.StatusInternalServerError)
 		return
 	}
 
+	// Step 5: Respond success
+	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprintf(w, "✅ Updated short link '%s'", code)
 }
 

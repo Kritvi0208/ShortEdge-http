@@ -8,6 +8,10 @@ type Visit struct {
 	Timestamp time.Time `json:"timestamp"`
 	IPAddress string    `json:"ip"`
 	Country   string    `json:"country"`
+	City      string `json:"city"`
 	Browser   string    `json:"browser"`
+	OS      string `json:"os"`
 	Device    string    `json:"device"`
 }
+
+//URLID
