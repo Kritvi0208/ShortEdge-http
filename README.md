@@ -1,4 +1,4 @@
-# 🔗 ShortEdge – A URL Shortener with Insights (net/http Version)
+# 🔗 ShortEdge – A URL Shortener (net/http Version)
 
 **ShortEdge** is a full-stack, privacy-conscious URL shortener built using Go’s `net/http` package.  
 It supports branded links, real-time analytics, visibility toggles, link expiry, and Prometheus metrics — all powered by a clean HTML/CSS frontend and PostgreSQL backend.
