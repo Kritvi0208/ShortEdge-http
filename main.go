@@ -45,7 +45,7 @@ var (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	// ✅ Connect to PostgreSQL
+	// Connects to PostgreSQL
 	var err error
 	db, err = repository.NewDB()
 	if err != nil {
@@ -53,7 +53,7 @@ func main() {
 	}
 	defer db.Close()
 
-	// ✅ Create 'urls' and 'visits' tables if they don't exist
+	// Create 'urls' and 'visits' tables if they don't exist
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS urls (
 		id TEXT PRIMARY KEY,
@@ -83,7 +83,7 @@ func main() {
 	fmt.Println("✅ Ensured tables 'urls' and 'visits' exist")
 	fmt.Println("✅ Connected to PostgreSQL")
 
-	// ✅ Set up HTTP handlers
+	// Set up HTTP handlers
 	// 	http.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
 	// 		httpSwagger.Handler(
 	// 			httpSwagger.URL("http://localhost:8080/docs/swagger.json"), // ✅ Tell Swagger where to find your spec
@@ -138,7 +138,7 @@ func analyticsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 1: Get URL by short code
+	// Get URL by short code
 	url, err := repository.GetURLByCode(db, code)
 
 	if url.Visibility == "private" {
@@ -151,14 +151,14 @@ func analyticsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 2: Get visits for that URL
+	// Get visits for that URL
 	visits, err := repository.GetVisitsByURLID(db, url.ID)
 	if err != nil {
 		http.Error(w, "Could not fetch visits", http.StatusInternalServerError)
 		return
 	}
 
-	// Step 3: Return analytics
+	// Return analytics
 	if len(visits) == 0 {
 		fmt.Fprintln(w, "No visits yet.")
 		return
@@ -204,7 +204,7 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🆕 Read optional custom short code
+	// Read optional custom short code
 	requestedCode := r.FormValue("code")
 	var shortCode string
 
@@ -235,7 +235,7 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  model.Now(),
 	}
 
-	// Step 3: Save to DB
+	// Save to DB
 	err = repository.SaveURL(db, url)
 	if err != nil {
 		http.Error(w, "Failed to save to database", http.StatusInternalServerError)
@@ -263,25 +263,25 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 1: Fetch from DB
+	// Fetch from DB
 	url, err := repository.GetURLByCode(db, code)
 	if err != nil {
 		http.Error(w, "URL not found", http.StatusNotFound)
 		return
 	}
 
-	// Step 2: Track visit (we’ll enhance this later)
-	// 🆕 Get IP (client or fallback)
+	// Track visit (we’ll enhance this later)
+	// Get IP (client or fallback)
 	ip := getClientIP(r)
 	if ip == "::1" || ip == "127.0.0.1" {
 		ip = "103.48.198.141" // local dev IP override
 	}
 
-	// 🆕 Parse user-agent
+	// Parse user-agent
 	ua := r.UserAgent()
 	browser, os, device := utils.ParseUserAgent(ua)
 
-	// 🆕 Get location
+	// Get location
 	location, _ := utils.GetLocation(ip) // ignore error fallback
 
 	visit := model.Visit{
@@ -375,7 +375,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 1: Decode JSON from request body
+	// Decode JSON from request body
 	var req struct {
 		LongURL    string `json:"long_url"`
 		Visibility string `json:"visibility"`
@@ -387,14 +387,14 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 2: Fetch original short URL from DB
+	// Fetch original short URL from DB
 	url, err := repository.GetURLByCode(db, code)
 	if err != nil {
 		http.Error(w, "Short code not found", http.StatusNotFound)
 		return
 	}
 
-	// Step 3: Apply updates if provided
+	// Apply updates if provided
 	if req.LongURL != "" {
 		url.Original = req.LongURL
 	}
@@ -402,14 +402,14 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		url.Visibility = req.Visibility
 	}
 
-	// Step 4: Save updates
+	// Save updates
 	err = repository.UpdateURL(db, url)
 	if err != nil {
 		http.Error(w, "Failed to update URL", http.StatusInternalServerError)
 		return
 	}
 
-	// Step 5: Respond success
+	// Respond success
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprintf(w, "✅ Updated short link '%s'", code)
 }
